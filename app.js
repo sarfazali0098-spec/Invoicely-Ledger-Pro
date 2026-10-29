@@ -211,13 +211,9 @@ el.btnSubmitAuth.addEventListener('click', async () => {
   el.btnSubmitAuth.disabled = false;
 });
 
-// --- FIXED: CENTRAL LOGOUT LOGIC ---
-async function handleLogout() {
-  try {
-    await supabaseClient.auth.signOut();
-  } catch (e) {
-    console.error(e);
-  }
+// --- FIXED: INSTANT LOGOUT LOGIC ---
+function handleLogout() {
+  // 1. Instantly clear UI and reset state (no waiting for network)
   state.user = null; 
   state.invoices = [];
   state.clients = [];
@@ -225,9 +221,18 @@ async function handleLogout() {
   el.mobileNav.classList.add('hidden'); 
   el.authScreen.classList.remove('hidden'); 
   el.authMsg.textContent = '';
+  el.modalSettings.classList.add('hidden');
+  
+  // 2. Tell Supabase to clear the session in the background
+  if (supabaseClient) {
+    supabaseClient.auth.signOut().catch(err => console.error("Signout error:", err));
+  }
+  
+  showToast("LOGGED OUT");
 }
 
-el.btnLogout.addEventListener('click', handleLogout);
+// Attach listener to BOTH desktop and mobile buttons
+if (el.btnLogout) el.btnLogout.addEventListener('click', handleLogout);
 if (el.mobNavLogout) el.mobNavLogout.addEventListener('click', handleLogout);
 
 // --- SUPABASE DATA FETCHING ---
