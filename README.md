@@ -32,4 +32,4 @@ Since this project has zero dependencies and requires no build step, running it 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git
+   https://sarfazali0098-spec.github.io/Invoicely-Ledger-Pro/
