@@ -51,6 +51,7 @@ const el = {
   mobNavNew: document.getElementById('mob-nav-new'),
   mobNavClients: document.getElementById('mob-nav-clients'),
   mobNavSettings: document.getElementById('mob-nav-settings'),
+  mobNavLogout: document.getElementById('mob-nav-logout'), // <-- ADDED THIS
   authTitle: document.getElementById('auth-title'),
   authSubtitle: document.getElementById('auth-subtitle'),
   tabLogin: document.getElementById('tab-login'),
@@ -122,10 +123,7 @@ async function init() {
   initTheme();
   
   try {
-    // Check if user is already logged in (Session Persistence)
     const { data: { session } } = await supabaseClient.auth.getSession();
-    
-    // Hide loading screen now that we have the answer
     el.loadingScreen.classList.add('hidden');
 
     if (session) {
@@ -136,7 +134,6 @@ async function init() {
       await loadDataFromSupabase();
       goToDashboard();
     } else {
-      // Not logged in, show auth screen
       el.appLayout.classList.add('hidden');
       el.mobileNav.classList.add('hidden');
       el.authScreen.classList.remove('hidden');
@@ -223,6 +220,9 @@ el.btnLogout.addEventListener('click', async () => {
   el.mobileNav.classList.add('hidden'); 
   el.authScreen.classList.remove('hidden'); 
 });
+
+// --- ADDED MOBILE LOGOUT LISTENER ---
+el.mobNavLogout.addEventListener('click', () => { el.btnLogout.click(); });
 
 // --- SUPABASE DATA FETCHING ---
 async function loadDataFromSupabase() {
