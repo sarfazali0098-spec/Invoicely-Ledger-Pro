@@ -51,7 +51,7 @@ const el = {
   mobNavNew: document.getElementById('mob-nav-new'),
   mobNavClients: document.getElementById('mob-nav-clients'),
   mobNavSettings: document.getElementById('mob-nav-settings'),
-  mobNavLogout: document.getElementById('mob-nav-logout'), // <-- ADDED THIS
+  mobNavLogout: document.getElementById('mob-nav-logout'), 
   authTitle: document.getElementById('auth-title'),
   authSubtitle: document.getElementById('auth-subtitle'),
   tabLogin: document.getElementById('tab-login'),
@@ -211,18 +211,24 @@ el.btnSubmitAuth.addEventListener('click', async () => {
   el.btnSubmitAuth.disabled = false;
 });
 
-el.btnLogout.addEventListener('click', async () => { 
-  await supabaseClient.auth.signOut();
+// --- FIXED: CENTRAL LOGOUT LOGIC ---
+async function handleLogout() {
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (e) {
+    console.error(e);
+  }
   state.user = null; 
   state.invoices = [];
   state.clients = [];
   el.appLayout.classList.add('hidden'); 
   el.mobileNav.classList.add('hidden'); 
   el.authScreen.classList.remove('hidden'); 
-});
+  el.authMsg.textContent = '';
+}
 
-// --- ADDED MOBILE LOGOUT LISTENER ---
-el.mobNavLogout.addEventListener('click', () => { el.btnLogout.click(); });
+el.btnLogout.addEventListener('click', handleLogout);
+if (el.mobNavLogout) el.mobNavLogout.addEventListener('click', handleLogout);
 
 // --- SUPABASE DATA FETCHING ---
 async function loadDataFromSupabase() {
@@ -280,7 +286,7 @@ const commands = [
   { name: 'Export JSON Backup', action: () => { el.btnExportJson.click(); } },
   { name: 'Export CSV', action: () => { el.btnExportCsv.click(); } },
   { name: 'Toggle Theme', action: () => { el.btnThemeToggle.click(); } },
-  { name: 'Logout', action: () => { el.btnLogout.click(); } }
+  { name: 'Logout', action: () => { handleLogout(); } }
 ];
 function openCommandPalette() {
   el.modalCommand.classList.remove('hidden');
