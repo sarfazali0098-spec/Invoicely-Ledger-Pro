@@ -211,9 +211,8 @@ el.btnSubmitAuth.addEventListener('click', async () => {
   el.btnSubmitAuth.disabled = false;
 });
 
-// --- FIXED: INSTANT LOGOUT LOGIC ---
+// --- LOGOUT LOGIC ---
 function handleLogout() {
-  // 1. Instantly clear UI and reset state (no waiting for network)
   state.user = null; 
   state.invoices = [];
   state.clients = [];
@@ -223,15 +222,12 @@ function handleLogout() {
   el.authMsg.textContent = '';
   el.modalSettings.classList.add('hidden');
   
-  // 2. Tell Supabase to clear the session in the background
   if (supabaseClient) {
     supabaseClient.auth.signOut().catch(err => console.error("Signout error:", err));
   }
-  
   showToast("LOGGED OUT");
 }
 
-// Attach listener to BOTH desktop and mobile buttons
 if (el.btnLogout) el.btnLogout.addEventListener('click', handleLogout);
 if (el.mobNavLogout) el.mobNavLogout.addEventListener('click', handleLogout);
 
@@ -282,6 +278,53 @@ el.navDashboard.addEventListener('click', goToDashboard);
 el.mobNavDash.addEventListener('click', goToDashboard);
 el.navClients.addEventListener('click', goToClients);
 el.mobNavClients.addEventListener('click', goToClients);
+
+// --- LOGO UPLOAD LISTENERS (FIXED) ---
+el.logoPlaceholder.addEventListener('click', () => el.logoInput.click());
+el.logoInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      // Compress the image to save DB space
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400; 
+        const scaleSize = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        state.activeInvoice.logo = base64;
+        state.profile.logo = base64;
+        localStorage.setItem('invoicely_profile', JSON.stringify(state.profile));
+        renderEditor(); 
+        showToast("LOGO ATTACHED");
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+el.logoShape.addEventListener('change', (e) => {
+  state.activeInvoice.logo_shape = e.target.value; 
+  state.profile.logo_shape = e.target.value;
+  localStorage.setItem('invoicely_profile', JSON.stringify(state.profile));
+  el.invoiceLogo.className = `invoice-logo ${e.target.value}`;
+});
+
+el.btnRemoveLogo.addEventListener('click', () => {
+  state.activeInvoice.logo = ''; 
+  state.profile.logo = '';
+  localStorage.setItem('invoicely_profile', JSON.stringify(state.profile));
+  el.logoInput.value = ''; 
+  renderEditor(); 
+  showToast("LOGO REMOVED");
+});
 
 // --- COMMAND PALETTE ---
 const commands = [
@@ -562,6 +605,14 @@ function renderEditor() {
 
   populateClientDropdown();
   renderQuickItems();
+
+  if (inv.logo) {
+    el.invoiceLogo.src = inv.logo; el.invoiceLogo.className = `invoice-logo ${inv.logo_shape}`;
+    el.invoiceLogo.classList.remove('hidden'); el.logoPlaceholder.classList.add('hidden');
+    el.logoControls.classList.remove('hidden'); el.logoShape.value = inv.logo_shape;
+  } else {
+    el.invoiceLogo.classList.add('hidden'); el.logoPlaceholder.classList.remove('hidden'); el.logoControls.classList.add('hidden');
+  }
 
   el.companyName.value = inv.company_name || ''; el.companyEmail.value = inv.company_email || '';
   el.invNumber.value = inv.invoice_number || ''; el.invDate.value = inv.date;
