@@ -1,10 +1,8 @@
-// --- FAIL-SAFE: Hide loading screen in 2.5 seconds ---
+// --- FAIL-SAFE: ONLY hide loading screen. NEVER force Auth screen. ---
 setTimeout(() => {
   const ls = document.getElementById('loading-screen');
   if (ls) ls.classList.add('hidden');
-  const auth = document.getElementById('auth-screen');
-  if (auth) auth.classList.remove('hidden');
-}, 2500);
+}, 3000);
 
 // --- SUPABASE CONFIGURATION ---
 const SUPABASE_URL = 'https://rbcxpsyzsdkhoyacfhpl.supabase.co';
@@ -119,20 +117,35 @@ function formatMoney(amount) {
   return sym + Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function init() {
+// --- NON-BLOCKING INITIALIZATION ---
+async function init() {
   initTheme();
   
-  // Check session in background
-  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+  try {
+    // Check if user is already logged in (Session Persistence)
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    // Hide loading screen now that we have the answer
+    el.loadingScreen.classList.add('hidden');
+
     if (session) {
       state.user = session.user;
       el.authScreen.classList.add('hidden');
       el.appLayout.classList.remove('hidden');
       el.mobileNav.classList.remove('hidden');
-      loadDataFromSupabase();
+      await loadDataFromSupabase();
       goToDashboard();
+    } else {
+      // Not logged in, show auth screen
+      el.appLayout.classList.add('hidden');
+      el.mobileNav.classList.add('hidden');
+      el.authScreen.classList.remove('hidden');
     }
-  }).catch(err => console.error("Session check failed:", err));
+  } catch (err) {
+    console.error("Auth check failed:", err);
+    el.loadingScreen.classList.add('hidden');
+    el.authScreen.classList.remove('hidden');
+  }
 }
 
 function initTheme() {
