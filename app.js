@@ -1,8 +1,20 @@
-// --- FAIL-SAFE: ONLY hide loading screen. NEVER force Auth screen. ---
+// --- PASSWORD RECOVERY LINK DETECTION (must run before Supabase clears the URL hash) ---
+const INITIAL_HASH = window.location.hash || '';
+let recoveryMode = /type=recovery/.test(INITIAL_HASH);
+let linkError = '';
+if (/error=|error_code=/.test(INITIAL_HASH)) {
+  linkError = /otp_expired|expired/i.test(INITIAL_HASH)
+    ? 'RESET LINK EXPIRED OR ALREADY USED. REQUEST A NEW ONE.'
+    : 'RESET LINK INVALID. REQUEST A NEW ONE.';
+}
+
+// --- FAIL-SAFE: never leave the user on the loading screen ---
 setTimeout(() => {
   const ls = document.getElementById('loading-screen');
   if (ls) ls.classList.add('hidden');
-}, 3000);
+  const app = document.getElementById('app-layout');
+  if (app && app.classList.contains('hidden')) showAuthScreen();
+}, 2500);
 
 // --- SUPABASE CONFIGURATION ---
 const SUPABASE_URL = 'https://rbcxpsyzsdkhoyacfhpl.supabase.co';
@@ -13,6 +25,10 @@ let supabaseClient = null;
 window.addEventListener('load', () => {
   if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Fires when the user lands from a password-reset email link
+    supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') { recoveryMode = true; showAuthScreen(); }
+    });
     init(); // Start the app only after Supabase is ready
   } else {
     console.error("Supabase SDK not found. Did you add the script tag to index.html?");
@@ -51,7 +67,6 @@ const el = {
   mobNavNew: document.getElementById('mob-nav-new'),
   mobNavClients: document.getElementById('mob-nav-clients'),
   mobNavSettings: document.getElementById('mob-nav-settings'),
-  mobNavLogout: document.getElementById('mob-nav-logout'), 
   authTitle: document.getElementById('auth-title'),
   authSubtitle: document.getElementById('auth-subtitle'),
   tabLogin: document.getElementById('tab-login'),
@@ -118,31 +133,32 @@ function formatMoney(amount) {
   return sym + Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// --- NON-BLOCKING INITIALIZATION ---
-async function init() {
+function init() {
   initTheme();
-  
-  try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    el.loadingScreen.classList.add('hidden');
 
-    if (session) {
-      state.user = session.user;
-      el.authScreen.classList.add('hidden');
-      el.appLayout.classList.remove('hidden');
-      el.mobileNav.classList.remove('hidden');
-      await loadDataFromSupabase();
-      goToDashboard();
-    } else {
-      el.appLayout.classList.add('hidden');
-      el.mobileNav.classList.add('hidden');
-      el.authScreen.classList.remove('hidden');
-    }
-  } catch (err) {
-    console.error("Auth check failed:", err);
-    el.loadingScreen.classList.add('hidden');
-    el.authScreen.classList.remove('hidden');
-  }
+  // Check session in background
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    if (recoveryMode) { showAuthScreen(); return; }          // reset link: show "new password" form
+    if (session) { enterApp(session.user); return; }
+    showAuthScreen();
+    if (linkError) { setAuthMode('forgot'); showAuthMsg(linkError); }
+  }).catch(err => { console.error("Session check failed:", err); showAuthScreen(); });
+}
+
+function showAuthScreen() {
+  el.loadingScreen.classList.add('hidden');
+  el.authScreen.classList.remove('hidden');
+  if (recoveryMode && authMode !== 'recovery') setAuthMode('recovery');
+}
+
+async function enterApp(user) {
+  state.user = user;
+  el.loadingScreen.classList.add('hidden');
+  el.authScreen.classList.add('hidden');
+  el.appLayout.classList.remove('hidden');
+  el.mobileNav.classList.remove('hidden');
+  await loadDataFromSupabase();
+  goToDashboard();
 }
 
 function initTheme() {
@@ -158,78 +174,172 @@ el.btnThemeToggle.addEventListener('click', () => {
 });
 
 // --- AUTHENTICATION ---
-el.tabLogin.addEventListener('click', () => { 
-  authMode='login'; el.tabLogin.classList.add('active'); el.tabSignup.classList.remove('active'); 
-  el.btnSubmitAuth.textContent='EXECUTE'; el.groupConfirmPass.classList.add('hidden');
-  el.authTitle.textContent = 'ACCESS SYSTEM'; el.authMsg.textContent=''; 
+const MIN_PASS_LEN = 6;
+let cooldownUntil = 0; // throttle for "send reset link"
+
+const AUTH_UI = {
+  login:    { title: 'ACCESS SYSTEM',      sub: 'Authenticate to access the ledger.',        btn: 'EXECUTE' },
+  signup:   { title: 'NEW PROTOCOL',       sub: 'Create an account to start invoicing.',     btn: 'REGISTER' },
+  forgot:   { title: 'RECOVER ACCESS',     sub: "Enter your email and we'll send a reset link.", btn: 'SEND RESET LINK' },
+  recovery: { title: 'SET NEW PASSPHRASE', sub: 'Choose a new passphrase for your account.', btn: 'UPDATE PASSPHRASE' }
+};
+
+function showAuthMsg(text, ok = false) {
+  el.authMsg.textContent = text;
+  el.authMsg.classList.toggle('success-text', ok);
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const ui = AUTH_UI[mode];
+  const $ = id => document.getElementById(id);
+  el.authTitle.textContent = ui.title;
+  el.authSubtitle.textContent = ui.sub;
+  el.btnSubmitAuth.textContent = ui.btn;
+  showAuthMsg('');
+
+  $('auth-tabs').classList.toggle('hidden', mode === 'forgot' || mode === 'recovery');
+  el.tabLogin.classList.toggle('active', mode === 'login');
+  el.tabSignup.classList.toggle('active', mode === 'signup');
+
+  $('group-email').classList.toggle('hidden', mode === 'recovery');
+  $('group-pass').classList.toggle('hidden', mode === 'forgot');
+  el.groupConfirmPass.classList.toggle('hidden', mode === 'login' || mode === 'forgot');
+  $('auth-forgot-row').classList.toggle('hidden', mode !== 'login');
+  $('auth-back-row').classList.toggle('hidden', mode !== 'forgot' && mode !== 'recovery');
+  $('btn-back-login').textContent = mode === 'recovery' ? '✕ CANCEL' : '← BACK TO LOGIN';
+
+  $('auth-pass-label').textContent = mode === 'recovery' ? 'NEW PASSPHRASE' : 'PASSPHRASE';
+  $('auth-pass-confirm-label').textContent = mode === 'recovery' ? 'CONFIRM NEW PASSPHRASE' : 'CONFIRM PASSPHRASE';
+  el.authPass.autocomplete = (mode === 'login') ? 'current-password' : 'new-password';
+  el.authPass.value = ''; el.authPassConfirm.value = '';
+}
+
+el.tabLogin.addEventListener('click', () => setAuthMode('login'));
+el.tabSignup.addEventListener('click', () => setAuthMode('signup'));
+document.getElementById('btn-forgot').addEventListener('click', () => {
+  setAuthMode('forgot');
+  el.authEmail.focus();
+});
+document.getElementById('btn-back-login').addEventListener('click', async () => {
+  if (authMode === 'recovery') {            // cancel the reset: drop the temporary recovery session
+    recoveryMode = false;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    await supabaseClient.auth.signOut();
+  }
+  setAuthMode('login');
 });
 
-el.tabSignup.addEventListener('click', () => { 
-  authMode='signup'; el.tabSignup.classList.add('active'); el.tabLogin.classList.remove('active'); 
-  el.btnSubmitAuth.textContent='REGISTER'; el.groupConfirmPass.classList.remove('hidden');
-  el.authTitle.textContent = 'NEW PROTOCOL'; el.authMsg.textContent=''; 
+// Show / hide password
+document.querySelectorAll('.pass-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'HIDE' : 'SHOW';
+  });
 });
+
+// Enter key submits the auth form
+el.authScreen.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !el.btnSubmitAuth.disabled) { e.preventDefault(); el.btnSubmitAuth.click(); }
+});
+
+// Send a password-reset email (used by the login screen and by Settings)
+async function sendResetEmail(email) {
+  if (window.location.protocol === 'file:') {
+    return { error: { message: 'OPEN THE APP FROM A WEBSITE (http/https), NOT AS A LOCAL FILE, TO USE PASSWORD RESET.' } };
+  }
+  const redirectTo = window.location.origin + window.location.pathname;
+  return await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+}
+function friendlyAuthError(error) {
+  const m = (error.message || '').toLowerCase();
+  if (error.status === 429 || m.includes('rate limit') || m.includes('too many'))
+    return 'TOO MANY REQUESTS. PLEASE WAIT A FEW MINUTES AND TRY AGAIN.';
+  return error.message;
+}
 
 el.btnSubmitAuth.addEventListener('click', async () => {
   const email = el.authEmail.value.trim();
   const pass = el.authPass.value;
-  if (!email || !pass) return el.authMsg.textContent = "CREDENTIALS REQUIRED.";
-  
+  const label = AUTH_UI[authMode].btn;
+
+  // ---- Validation ----
+  if (authMode === 'forgot') {
+    if (!email) return showAuthMsg("ENTER YOUR EMAIL.");
+    const wait = Math.ceil((cooldownUntil - Date.now()) / 1000);
+    if (wait > 0) return showAuthMsg(`PLEASE WAIT ${wait}s BEFORE REQUESTING AGAIN.`);
+  } else if (authMode === 'recovery') {
+    if (pass.length < MIN_PASS_LEN) return showAuthMsg(`PASSPHRASE MUST BE AT LEAST ${MIN_PASS_LEN} CHARACTERS.`);
+    if (pass !== el.authPassConfirm.value) return showAuthMsg("PASSPHRASES DO NOT MATCH.");
+  } else if (!email || !pass) {
+    return showAuthMsg("CREDENTIALS REQUIRED.");
+  } else if (authMode === 'signup' && pass !== el.authPassConfirm.value) {
+    return showAuthMsg("PASSPHRASES DO NOT MATCH.");
+  }
+
+  showAuthMsg('');
   el.btnSubmitAuth.textContent = "CONNECTING...";
   el.btnSubmitAuth.disabled = true;
 
-  if (authMode === 'signup') {
-    if (pass !== el.authPassConfirm.value) {
-      el.authMsg.textContent = "PASSPHRASES DO NOT MATCH.";
-      el.btnSubmitAuth.textContent = 'REGISTER'; el.btnSubmitAuth.disabled = false;
-      return;
-    }
-    
-    const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
-    if (error) {
-      el.authMsg.textContent = error.message;
+  try {
+    if (authMode === 'forgot') {
+      const { error } = await sendResetEmail(email);
+      if (error) {
+        showAuthMsg(friendlyAuthError(error));
+      } else {
+        cooldownUntil = Date.now() + 60000;
+        // Same message whether or not the email exists (prevents account enumeration)
+        showAuthMsg("IF AN ACCOUNT EXISTS FOR THIS EMAIL, A RESET LINK HAS BEEN SENT. CHECK YOUR INBOX (AND SPAM).", true);
+      }
+    } else if (authMode === 'recovery') {
+      const { data, error } = await supabaseClient.auth.updateUser({ password: pass });
+      if (error) {
+        showAuthMsg(friendlyAuthError(error));
+      } else {
+        recoveryMode = false;
+        history.replaceState(null, '', window.location.pathname + window.location.search); // remove tokens from URL
+        setAuthMode('login');
+        await enterApp(data.user);
+        showToast("PASSPHRASE UPDATED");
+      }
+    } else if (authMode === 'signup') {
+      const { error } = await supabaseClient.auth.signUp({ email, password: pass });
+      if (error) {
+        showAuthMsg(friendlyAuthError(error));
+      } else {
+        setAuthMode('login');
+        showToast("PROTOCOL INITIALIZED. PLEASE LOG IN.");
+      }
     } else {
-      showToast("PROTOCOL INITIALIZED. PLEASE LOG IN.");
-      el.tabLogin.click();
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+      if (error) {
+        showAuthMsg(friendlyAuthError(error));
+      } else {
+        await enterApp(data.user);
+        showToast("AUTHENTICATED");
+      }
     }
-  } else {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-    if (error) {
-      el.authMsg.textContent = error.message;
-    } else {
-      state.user = data.user;
-      el.authScreen.classList.add('hidden');
-      el.appLayout.classList.remove('hidden');
-      el.mobileNav.classList.remove('hidden'); 
-      await loadDataFromSupabase();
-      goToDashboard();
-      showToast("AUTHENTICATED");
-    }
+  } catch (err) {
+    console.error("Auth error:", err);
+    showAuthMsg("NETWORK ERROR. PLEASE TRY AGAIN.");
   }
 
-  el.btnSubmitAuth.textContent = authMode === 'signup' ? 'REGISTER' : 'EXECUTE';
+  el.btnSubmitAuth.textContent = AUTH_UI[authMode].btn;
   el.btnSubmitAuth.disabled = false;
 });
 
-// --- LOGOUT LOGIC ---
-function handleLogout() {
+el.btnLogout.addEventListener('click', async () => { 
+  await supabaseClient.auth.signOut();
   state.user = null; 
   state.invoices = [];
   state.clients = [];
   el.appLayout.classList.add('hidden'); 
   el.mobileNav.classList.add('hidden'); 
+  setAuthMode('login');
   el.authScreen.classList.remove('hidden'); 
-  el.authMsg.textContent = '';
-  el.modalSettings.classList.add('hidden');
-  
-  if (supabaseClient) {
-    supabaseClient.auth.signOut().catch(err => console.error("Signout error:", err));
-  }
-  showToast("LOGGED OUT");
-}
-
-if (el.btnLogout) el.btnLogout.addEventListener('click', handleLogout);
-if (el.mobNavLogout) el.mobNavLogout.addEventListener('click', handleLogout);
+});
 
 // --- SUPABASE DATA FETCHING ---
 async function loadDataFromSupabase() {
@@ -279,53 +389,6 @@ el.mobNavDash.addEventListener('click', goToDashboard);
 el.navClients.addEventListener('click', goToClients);
 el.mobNavClients.addEventListener('click', goToClients);
 
-// --- LOGO UPLOAD LISTENERS (FIXED) ---
-el.logoPlaceholder.addEventListener('click', () => el.logoInput.click());
-el.logoInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      // Compress the image to save DB space
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 400; 
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        const base64 = canvas.toDataURL('image/jpeg', 0.8);
-        state.activeInvoice.logo = base64;
-        state.profile.logo = base64;
-        localStorage.setItem('invoicely_profile', JSON.stringify(state.profile));
-        renderEditor(); 
-        showToast("LOGO ATTACHED");
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-});
-
-el.logoShape.addEventListener('change', (e) => {
-  state.activeInvoice.logo_shape = e.target.value; 
-  state.profile.logo_shape = e.target.value;
-  localStorage.setItem('invoicely_profile', JSON.stringify(state.profile));
-  el.invoiceLogo.className = `invoice-logo ${e.target.value}`;
-});
-
-el.btnRemoveLogo.addEventListener('click', () => {
-  state.activeInvoice.logo = ''; 
-  state.profile.logo = '';
-  localStorage.setItem('invoicely_profile', JSON.stringify(state.profile));
-  el.logoInput.value = ''; 
-  renderEditor(); 
-  showToast("LOGO REMOVED");
-});
-
 // --- COMMAND PALETTE ---
 const commands = [
   { name: 'Go to Dashboard', action: goToDashboard, shortcut: 'G D' },
@@ -334,7 +397,7 @@ const commands = [
   { name: 'Export JSON Backup', action: () => { el.btnExportJson.click(); } },
   { name: 'Export CSV', action: () => { el.btnExportCsv.click(); } },
   { name: 'Toggle Theme', action: () => { el.btnThemeToggle.click(); } },
-  { name: 'Logout', action: () => { handleLogout(); } }
+  { name: 'Logout', action: () => { el.btnLogout.click(); } }
 ];
 function openCommandPalette() {
   el.modalCommand.classList.remove('hidden');
@@ -606,14 +669,6 @@ function renderEditor() {
   populateClientDropdown();
   renderQuickItems();
 
-  if (inv.logo) {
-    el.invoiceLogo.src = inv.logo; el.invoiceLogo.className = `invoice-logo ${inv.logo_shape}`;
-    el.invoiceLogo.classList.remove('hidden'); el.logoPlaceholder.classList.add('hidden');
-    el.logoControls.classList.remove('hidden'); el.logoShape.value = inv.logo_shape;
-  } else {
-    el.invoiceLogo.classList.add('hidden'); el.logoPlaceholder.classList.remove('hidden'); el.logoControls.classList.add('hidden');
-  }
-
   el.companyName.value = inv.company_name || ''; el.companyEmail.value = inv.company_email || '';
   el.invNumber.value = inv.invoice_number || ''; el.invDate.value = inv.date;
   el.clientName.value = inv.client_name; el.clientAddress.value = inv.client_address;
@@ -746,3 +801,14 @@ el.btnSettings.addEventListener('click', () => el.modalSettings.classList.remove
 el.mobNavSettings.addEventListener('click', () => el.modalSettings.classList.remove('hidden'));
 document.getElementById('btn-close-settings').addEventListener('click', () => el.modalSettings.classList.add('hidden'));
 document.getElementById('btn-close-client').addEventListener('click', () => el.modalClient.classList.add('hidden'));
+
+// CHANGE PASSWORD (sends a reset link to the logged-in user's email)
+document.getElementById('btn-change-password').addEventListener('click', async (e) => {
+  if (!state.user?.email) return showToast("NOT LOGGED IN", "error");
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  const { error } = await sendResetEmail(state.user.email);
+  btn.disabled = false;
+  if (error) showToast(friendlyAuthError(error), "error");
+  else showToast("RESET LINK SENT TO " + state.user.email);
+});

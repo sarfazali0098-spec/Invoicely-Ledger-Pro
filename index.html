@@ -30,24 +30,36 @@
         <h2 id="auth-title">ACCESS SYSTEM</h2>
         <p class="subtitle" id="auth-subtitle">Authenticate to access the ledger.</p>
       </div>
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="auth-tabs">
         <button id="tab-login" class="active">LOGIN</button>
         <button id="tab-signup">REGISTER</button>
       </div>
-      <div class="input-group">
+      <div class="input-group" id="group-email">
         <label>IDENTIFIER</label>
-        <input type="email" id="auth-email" placeholder="user@system.local" required>
+        <input type="email" id="auth-email" placeholder="user@system.local" autocomplete="email" required>
       </div>
-      <div class="input-group">
-        <label>PASSPHRASE</label>
-        <input type="password" id="auth-pass" placeholder="••••••••" required>
+      <div class="input-group" id="group-pass">
+        <label id="auth-pass-label">PASSPHRASE</label>
+        <div class="pass-wrap">
+          <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password" required>
+          <button type="button" class="pass-toggle" data-target="auth-pass">SHOW</button>
+        </div>
       </div>
       <div class="input-group hidden" id="group-confirm-pass">
-        <label>CONFIRM PASSPHRASE</label>
-        <input type="password" id="auth-pass-confirm" placeholder="••••••••">
+        <label id="auth-pass-confirm-label">CONFIRM PASSPHRASE</label>
+        <div class="pass-wrap">
+          <input type="password" id="auth-pass-confirm" placeholder="••••••••" autocomplete="new-password">
+          <button type="button" class="pass-toggle" data-target="auth-pass-confirm">SHOW</button>
+        </div>
+      </div>
+      <div class="auth-links" id="auth-forgot-row">
+        <button type="button" id="btn-forgot" class="link-btn">FORGOT PASSPHRASE?</button>
       </div>
       <p id="auth-msg" class="error-text"></p>
       <button id="btn-submit-auth" class="btn-primary block-btn">EXECUTE</button>
+      <div class="auth-links center hidden" id="auth-back-row">
+        <button type="button" id="btn-back-login" class="link-btn">← BACK TO LOGIN</button>
+      </div>
     </div>
   </div>
 
@@ -311,30 +323,25 @@
     </main>
   </div>
 
-  <!-- MOBILE BOTTOM NAV -->
-<nav id="mobile-nav" class="bottom-nav no-print hidden">
-  <button id="mob-nav-dash" class="mob-nav-item active">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-    OVERVIEW
-  </button>
-  <button id="mob-nav-new" class="mob-nav-item">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-    NEW
-  </button>
-  <button id="mob-nav-clients" class="mob-nav-item">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-    CLIENTS
-  </button>
-  <button id="mob-nav-settings" class="mob-nav-item">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-    CONFIG
-  </button>
-  <!-- ADDED LOGOUT BUTTON HERE -->
-  <button id="mob-nav-logout" class="mob-nav-item text-danger">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-    EXIT
-  </button>
-</nav>
+  <!-- MOBILE BOTTOM NAV (Added hidden by default) -->
+  <nav id="mobile-nav" class="bottom-nav no-print hidden">
+    <button id="mob-nav-dash" class="mob-nav-item active">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      OVERVIEW
+    </button>
+    <button id="mob-nav-new" class="mob-nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      NEW
+    </button>
+    <button id="mob-nav-clients" class="mob-nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      CLIENTS
+    </button>
+    <button id="mob-nav-settings" class="mob-nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      CONFIG
+    </button>
+  </nav>
 
   <!-- COMMAND PALETTE MODAL -->
   <div id="modal-command" class="modal-overlay hidden" style="align-items: flex-start; padding-top: 10vh;">
@@ -366,6 +373,10 @@
       <div class="settings-action">
         <div><h4>EXPORT CSV</h4><p>Download spreadsheet.</p></div>
         <button id="btn-export-csv" class="btn-secondary">EXPORT CSV</button>
+      </div>
+      <div class="settings-action">
+        <div><h4>CHANGE PASSPHRASE</h4><p>Send a reset link to your email.</p></div>
+        <button id="btn-change-password" class="btn-secondary">SEND LINK</button>
       </div>
     </div>
   </div>
