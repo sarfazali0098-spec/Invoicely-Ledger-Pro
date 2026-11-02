@@ -151,14 +151,14 @@ button { cursor: pointer; font-size: 12px; letter-spacing: 0.5px; transition: 0.
 @media (max-width: 768px) { .invoice-paper { padding: 20px; } }
 
 .logo-wrapper { margin-bottom: 15px; }
-.invoice-logo { max-height: 60px; display: block; margin-bottom: 10px; }
+.invoice-logo { max-height: 60px; max-width: 180px; object-fit: contain; display: block; margin-bottom: 10px; cursor: pointer; }
 .invoice-logo.logo-square { width: 60px; height: 60px; object-fit: cover; }
 .invoice-logo.logo-circle { width: 60px; height: 60px; object-fit: cover; border-radius: 50%; }
 .invoice-logo.logo-rectangle { width: 120px; height: 60px; object-fit: cover; }
 .logo-placeholder { display: inline-block; padding: 8px 12px; background: #f4f4f5; border: 1px dashed #d4d4d8; font-size: 11px; color: #71717a; cursor: pointer; font-family: var(--font-head); }
 .logo-controls { display: flex; gap: 5px; margin-top: 10px; }
 .logo-shape-select { padding: 4px 8px; font-size: 11px; border: 1px solid #d4d4d8; background: #fff; outline: none; }
-.btn-remove-logo { padding: 4px 8px; background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; font-size: 11px; cursor: pointer; }
+.btn-remove-logo { padding: 4px 8px; line-height: 1; background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; font-size: 11px; cursor: pointer; }
 
 .quick-items { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
 .quick-items span { font-size: 11px; font-family: var(--font-head); color: #71717a; }
@@ -285,3 +285,4 @@ button { cursor: pointer; font-size: 12px; letter-spacing: 0.5px; transition: 0.
   .invoice-paper { box-shadow: none; padding: 0; max-width: 100%; }
   input, textarea { border-bottom: none !important; background: transparent !important; }
 }
+@media print { .invoice-logo { cursor: default; } }

@@ -153,6 +153,7 @@ function showAuthScreen() {
 
 async function enterApp(user) {
   state.user = user;
+  loadProfile();
   el.loadingScreen.classList.add('hidden');
   el.authScreen.classList.add('hidden');
   el.appLayout.classList.remove('hidden');
@@ -335,6 +336,7 @@ el.btnLogout.addEventListener('click', async () => {
   state.user = null; 
   state.invoices = [];
   state.clients = [];
+  state.profile = { company_name: '', company_email: '', logo: '', logo_shape: 'logo-original' };
   el.appLayout.classList.add('hidden'); 
   el.mobileNav.classList.add('hidden'); 
   setAuthMode('login');
@@ -600,6 +602,9 @@ function openEditor(inv = null) {
       discount: 0, tax_percent: 0, notes: '', currency: 'INR', status: 'Draft', template: 'template-modern'
     };
   }
+  // Company logo is shared by every invoice
+  state.activeInvoice.logo = state.profile.logo || '';
+  state.activeInvoice.logo_shape = state.profile.logo_shape || 'logo-original';
   renderEditor();
 }
 
@@ -706,6 +711,7 @@ function renderEditor() {
   el.taxPercent.addEventListener('input', (e) => { inv.tax_percent = Number(e.target.value) || 0; calculateTotals(); });
   el.invoiceNotes.addEventListener('input', (e) => { inv.notes = e.target.value; });
 
+  renderLogo();
   calculateTotals();
 }
 
@@ -718,6 +724,103 @@ function renderQuickItems() {
     el.quickItemsContainer.appendChild(btn);
   });
 }
+
+// --- COMPANY LOGO ---
+const LOGO_MAX_BYTES = 5 * 1024 * 1024;   // reject files over 5 MB
+const LOGO_MAX_DIM = 400;                 // resized so it stays small and prints sharp
+const logoKey = () => `invoicely_profile_${state.user ? state.user.id : 'guest'}`;
+
+function loadProfile() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(logoKey()) || 'null');
+    if (saved) state.profile = { ...state.profile, ...saved };
+  } catch (e) { console.warn('Profile load failed', e); }
+}
+function saveProfile() {
+  try { localStorage.setItem(logoKey(), JSON.stringify(state.profile)); }
+  catch (e) { showToast("LOGO TOO LARGE TO SAVE ON THIS DEVICE", "error"); }
+}
+
+function renderLogo() {
+  const inv = state.activeInvoice;
+  if (!inv) return;
+  const has = !!inv.logo;
+  el.invoiceLogo.classList.toggle('hidden', !has);
+  el.logoPlaceholder.classList.toggle('hidden', has);
+  el.logoControls.classList.toggle('hidden', !has);
+  if (has) {
+    el.invoiceLogo.src = inv.logo;
+    el.invoiceLogo.className = `invoice-logo ${inv.logo_shape || 'logo-original'}`;
+    el.logoShape.value = inv.logo_shape || 'logo-original';
+  } else {
+    el.invoiceLogo.removeAttribute('src');
+  }
+}
+
+function setLogo(dataUrl, shape) {
+  state.activeInvoice.logo = dataUrl;
+  state.activeInvoice.logo_shape = shape || state.activeInvoice.logo_shape || 'logo-original';
+  state.profile.logo = state.activeInvoice.logo;
+  state.profile.logo_shape = state.activeInvoice.logo_shape;
+  saveProfile();
+  renderLogo();
+}
+
+// Resize + compress the chosen image on a canvas, return a data URL
+function processLogoFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('READ FAILED'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('NOT A VALID IMAGE'));
+      img.onload = () => {
+        const scale = Math.min(1, LOGO_MAX_DIM / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const keepAlpha = /png|webp|gif|svg/.test(file.type);   // keep transparency
+        resolve(keepAlpha ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.9));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+el.logoPlaceholder.addEventListener('click', () => el.logoInput.click());
+el.invoiceLogo.addEventListener('click', () => el.logoInput.click());   // click logo to replace it
+
+el.logoInput.addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';                       // allows re-selecting the same file later
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return showToast("PLEASE CHOOSE AN IMAGE FILE", "error");
+  if (file.size > LOGO_MAX_BYTES) return showToast("IMAGE TOO LARGE (MAX 5 MB)", "error");
+  try {
+    setLogo(await processLogoFile(file));
+    showToast("LOGO ADDED");
+  } catch (err) {
+    showToast(err.message || "COULD NOT LOAD IMAGE", "error");
+  }
+});
+
+el.logoShape.addEventListener('change', (e) => {
+  state.activeInvoice.logo_shape = e.target.value;
+  state.profile.logo_shape = e.target.value;
+  saveProfile();
+  renderLogo();
+});
+
+el.btnRemoveLogo.addEventListener('click', () => {
+  state.activeInvoice.logo = '';
+  state.profile.logo = '';
+  saveProfile();
+  renderLogo();
+  showToast("LOGO REMOVED");
+});
 
 // MATH & ACTIONS
 function calculateTotals() {
