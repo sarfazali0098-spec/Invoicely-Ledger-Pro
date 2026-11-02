@@ -42,13 +42,16 @@ input:focus { border-color: var(--accent); }
 .error-text.success-text { color: var(--accent); }
 .error-text:empty { display: none; }
 .pass-wrap { position: relative; display: flex; }
-.pass-wrap input { width: 100%; padding-right: 64px; }
-.pass-toggle { position: absolute; right: 0; top: 0; bottom: 0; padding: 0 12px; background: none; border: none; color: var(--text-secondary); font-family: var(--font-head); font-size: 10px; letter-spacing: 1px; cursor: pointer; }
-.pass-toggle:hover { color: var(--accent); }
-.auth-links { display: flex; justify-content: flex-end; margin: -5px 0 15px; }
-.auth-links.center { justify-content: center; margin: 18px 0 0; }
-.link-btn { background: none; border: none; padding: 0; color: var(--text-secondary); font-family: var(--font-head); font-size: 11px; letter-spacing: 1px; cursor: pointer; }
-.link-btn:hover { color: var(--accent); }
+.pass-wrap input { width: 100%; padding-right: 70px; }
+.pass-toggle { position: absolute; right: 1px; top: 1px; bottom: 1px; min-width: 62px; padding: 0 12px; background: transparent; border: none; border-left: 1px solid var(--border); border-radius: 0; color: var(--text-secondary); font-family: var(--font-head); font-size: 10px; font-weight: 600; letter-spacing: 1.5px; cursor: pointer; transition: 0.2s; -webkit-appearance: none; appearance: none; }
+.pass-toggle:hover, .pass-toggle:focus-visible { color: var(--accent); background: var(--bg-hover); outline: none; }
+.auth-links { display: flex; justify-content: flex-end; margin: -5px 0 18px; }
+.auth-links.center { justify-content: center; margin: 20px 0 0; padding-top: 18px; border-top: 1px solid var(--border); }
+.link-btn { background: transparent; border: none; border-radius: 0; padding: 4px 0; color: var(--text-secondary); font-family: var(--font-head); font-size: 11px; font-weight: 500; letter-spacing: 1.5px; cursor: pointer; transition: 0.2s; -webkit-appearance: none; appearance: none; border-bottom: 1px solid transparent; }
+.link-btn:hover, .link-btn:focus-visible { color: var(--accent); border-bottom-color: var(--accent); outline: none; }
+.auth-card .input-group input { width: 100%; border-radius: 0; }
+.auth-card input:-webkit-autofill,
+.auth-card input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--bg-elevated) inset !important; -webkit-text-fill-color: var(--text-primary) !important; caret-color: var(--text-primary); transition: background-color 9999s; }
 
 /* LAYOUT */
 .app-layout { display: flex; height: 100vh; overflow: hidden; }
